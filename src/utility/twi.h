@@ -52,6 +52,5 @@
   void twi_releaseBus(void);
 
   void twi_setMaxLoops(uint16_t maxloops);
-
 #endif
 

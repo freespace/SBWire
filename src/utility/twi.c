@@ -74,8 +74,11 @@ static volatile uint16_t twi_maxloops;
  * Added to allow for the SB_WAIT macro
  */
 static volatile uint16_t twi_loopcnt;
-#define SB_WAIT(COND) do { twi_loopcnt = 0; \
-  while(COND && twi_loopcnt < twi_maxloops) { twi_loopcnt++}} while(0);
+#define SB_WAIT(COND, TO_RET) \
+  do { twi_loopcnt = 0; \
+    while(COND && twi_loopcnt < twi_maxloops) { twi_loopcnt++;} \
+    if (twi_loopcnt >= twi_maxloops) return TO_RET; \
+  } while(0)
 /*
  * Function twi_init
  * Desc     readys twi pins and sets twi bitrate
@@ -105,6 +108,10 @@ void twi_init(void)
 
   // enable twi module, acks, and twi interrupt
   TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA);
+
+  // make twi_maxloops something reasonable. Default I2C
+  // freq is 100KHz, so 10 us, so lets wait no more than 100 us
+  twi_maxloops = 100 * (F_CPU>>20);
 }
 
 /*
@@ -171,9 +178,8 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sen
   }
 
   // wait until twi is ready, become master receiver
-  while(TWI_READY != twi_state){
-    continue;
-  }
+  SB_WAIT(TWI_READY != twi_state, 0);
+
   twi_state = TWI_MRX;
   twi_sendStop = sendStop;
   // reset error state (0xFF.. no error occured)
@@ -210,9 +216,7 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sen
     TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTA);
 
   // wait for read operation to complete
-  while(TWI_MRX == twi_state){
-    continue;
-  }
+  SB_WAIT(TWI_MRX == twi_state, 0);
 
   if (twi_masterBufferIndex < length)
     length = twi_masterBufferIndex;
@@ -239,6 +243,7 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sen
  *          2 .. address send, NACK received
  *          3 .. data send, NACK received
  *          4 .. other twi error (lost bus arbitration, bus error, ..)
+ *          5 .. timed out
  */
 uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait, uint8_t sendStop)
 {
@@ -250,9 +255,8 @@ uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait
   }
 
   // wait until twi is ready, become master transmitter
-  while(TWI_READY != twi_state){
-    continue;
-  }
+  SB_WAIT(TWI_READY != twi_state, 5);
+
   twi_state = TWI_MTX;
   twi_sendStop = sendStop;
   // reset error state (0xFF.. no error occured)
@@ -292,9 +296,7 @@ uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait
     TWCR = _BV(TWINT) | _BV(TWEA) | _BV(TWEN) | _BV(TWIE) | _BV(TWSTA);	// enable INTs
 
   // wait for write operation to complete
-  while(wait && (TWI_MTX == twi_state)){
-    continue;
-  }
+  SB_WAIT(wait && (TWI_MTX == twi_state), 5);
 
   if (twi_error == 0xFF)
     return 0;	// success
@@ -390,9 +392,7 @@ void twi_stop(void)
 
   // wait for stop condition to be exectued on bus
   // TWINT is not set after a stop condition!
-  while(TWCR & _BV(TWSTO)){
-    continue;
-  }
+  SB_WAIT(TWCR & _BV(TWSTO),);
 
   // update twi state
   twi_state = TWI_READY;
