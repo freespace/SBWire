@@ -68,8 +68,14 @@ static volatile uint8_t twi_error;
  *
  * This is chosen over doing millis() or micros() based timeouts to reduce
  * overhead.
+ * make twi_maxloops something reasonable. Default I2C
+ * freq is 100KHz, so 10 us, so lets wait around 100 us
+ *
+ * The maths: F_CPU>>20 is dividing by approximately 1e6, so from 8 MHz
+ * we get a number around 8 (7 in this case). We do this b/c the 100 us
+ * is 100x10^-6, so the exponents cancel out.
  */
-static volatile uint16_t twi_maxloops;
+static volatile uint16_t twi_maxloops = 100 * (F_CPU>>20);
 /**
  * Added to allow for the SB_WAIT macro
  */
@@ -77,7 +83,7 @@ static volatile uint16_t twi_loopcnt;
 #define SB_WAIT(COND, TO_RET) \
   do { twi_loopcnt = 0; \
     while(COND && twi_loopcnt < twi_maxloops) { twi_loopcnt++;} \
-    if (twi_loopcnt >= twi_maxloops) return TO_RET; \
+    if (twi_loopcnt >= twi_maxloops) {twi_stop(); twi_init(); return TO_RET;} \
   } while(0)
 /*
  * Function twi_init
@@ -109,9 +115,6 @@ void twi_init(void)
   // enable twi module, acks, and twi interrupt
   TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA);
 
-  // make twi_maxloops something reasonable. Default I2C
-  // freq is 100KHz, so 10 us, so lets wait no more than 100 us
-  twi_maxloops = 100 * (F_CPU>>20);
 }
 
 /*
