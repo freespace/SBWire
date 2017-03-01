@@ -576,3 +576,7 @@ ISR(TWI_vect)
   }
 }
 
+
+void twi_setMaxLoops(uint16_t maxloops) {
+  twi_maxloops = maxloops;
+}
