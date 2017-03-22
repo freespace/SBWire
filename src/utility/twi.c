@@ -71,13 +71,12 @@ static volatile uint8_t twi_error;
  * make twi_maxloops something reasonable. Default I2C
  * freq is 100KHz, so 10 us, so lets wait around 100 us
  *
- * The maths: F_CPU>>20 is dividing by approximately 1e6, so from 8 MHz
- * we get a number around 8 (7 in this case). We do this b/c the 100 us
- * is 100x10^-6, so the exponents cancel out.
+ * The maths: F_CPU>>20 is dividing by approximately 1e6, so from 16 MHz
+ * we get 15. Multiplied by 100 we get 1500. 1500 cycles at 16 MHz is 93.75 us
  */
 static volatile uint16_t twi_maxloops = 100 * (F_CPU>>20);
 /**
- * Added to allow for the SB_WAIT macro
+ * Added to allow for the SB_WAIT and SB_DOWHILE macros
  */
 static volatile uint16_t twi_loopcnt;
 #define SB_WAIT(COND, TO_RET) \
@@ -85,6 +84,17 @@ static volatile uint16_t twi_loopcnt;
     while(COND && twi_loopcnt < twi_maxloops) { twi_loopcnt++;} \
     if (twi_loopcnt >= twi_maxloops) {twi_stop(); twi_init(); return TO_RET;} \
   } while(0)
+
+#define SB_DOWHILE(COND, TO_RET, LOOP_STATEMENT) \
+  do { \
+    twi_loopcnt = 0; \
+    do { \
+      LOOP_STATEMENT; twi_loopcnt++; \
+    } while (COND && twi_loopcnt < twi_maxloops); \
+    if (twi_loopcnt >= twi_maxloops) {twi_stop(); twi_init(); return TO_RET;} \
+  } while(0)
+
+
 /*
  * Function twi_init
  * Desc     readys twi pins and sets twi bitrate
@@ -209,9 +219,7 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sen
     // up. Also, don't enable the START interrupt. There may be one pending from the
     // repeated start that we sent ourselves, and that would really confuse things.
     twi_inRepStart = false;			// remember, we're dealing with an ASYNC ISR
-    do {
-      TWDR = twi_slarw;
-    } while(TWCR & _BV(TWWC));
+    SB_DOWHILE(TWCR & _BV(TWWC), 0, TWDR = twi_slarw);
     TWCR = _BV(TWINT) | _BV(TWEA) | _BV(TWEN) | _BV(TWIE);	// enable INTs, but not START
   }
   else
@@ -289,9 +297,7 @@ uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait
     // up. Also, don't enable the START interrupt. There may be one pending from the
     // repeated start that we sent outselves, and that would really confuse things.
     twi_inRepStart = false;			// remember, we're dealing with an ASYNC ISR
-    do {
-      TWDR = twi_slarw;
-    } while(TWCR & _BV(TWWC));
+    SB_DOWHILE(TWCR & _BV(TWWC), 5,  TWDR = twi_slarw);
     TWCR = _BV(TWINT) | _BV(TWEA) | _BV(TWEN) | _BV(TWIE);	// enable INTs, but not START
   }
   else
