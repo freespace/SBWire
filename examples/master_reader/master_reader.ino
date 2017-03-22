@@ -10,7 +10,7 @@
 // This example code is in the public domain.
 
 
-#include <Wire.h>
+#include <SBWire.h>
 
 void setup() {
   Wire.begin();        // join i2c bus (address optional for master)
