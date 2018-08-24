@@ -15,7 +15,11 @@
   You should have received a copy of the GNU Lesser General Public
   License along with this library; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
+
+  Modified 2017 by Steve Bian (notifications@github.com) to prevent while() loop deadlocks
+  Modified 2018 by Frank Paynter (paynterf@gmail.com) to add user access to twi_maxloops parameter
+
+  */
 
 #ifndef twi_h
 #define twi_h
@@ -52,5 +56,8 @@
   void twi_releaseBus(void);
 
   void twi_setMaxLoops(uint16_t maxloops);
+  uint16_t twi_getMaxLoops();
+  uint16_t twi_getRecoveryCount(); //08/22/18 gfp for monitoring purposes
+  void twi_clearRecoveryCount(); //08/22/18 gfp for monitoring purposes
 #endif
 

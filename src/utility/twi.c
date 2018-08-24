@@ -17,6 +17,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
   Modified 2012 by Todd Krein (todd@krein.org) to implement repeated starts
+  Modified 2017 by Steve Bian (notifications@github.com) to prevent while() loop deadlocks
+  Modified 2018 by Frank Paynter (paynterf@gmail.com) to add user access to twi_maxloops parameter
 */
 
 #include <math.h>
@@ -59,6 +61,9 @@ static volatile uint8_t twi_rxBufferIndex;
 
 static volatile uint8_t twi_error;
 
+//08/22/18 gfp - added to monitor lockup recoveries
+static uint16_t twi_lockup_recovery_count = 0;
+
 /**
  * This defines the maximum number of loops various while (...) continue;
  *
@@ -82,7 +87,8 @@ static volatile uint16_t twi_loopcnt;
 #define SB_WAIT(COND, TO_RET) \
   do { twi_loopcnt = 0; \
     while(COND && twi_loopcnt < twi_maxloops) { twi_loopcnt++;} \
-    if (twi_loopcnt >= twi_maxloops) {twi_stop(); twi_init(); return TO_RET;} \
+    if (twi_loopcnt >= twi_maxloops) {twi_stop(); twi_init(); twi_lockup_recovery_count++; \
+		return TO_RET;} \
   } while(0)
 
 #define SB_DOWHILE(COND, TO_RET, LOOP_STATEMENT) \
@@ -91,7 +97,8 @@ static volatile uint16_t twi_loopcnt;
     do { \
       LOOP_STATEMENT; twi_loopcnt++; \
     } while (COND && twi_loopcnt < twi_maxloops); \
-    if (twi_loopcnt >= twi_maxloops) {twi_stop(); twi_init(); return TO_RET;} \
+    if (twi_loopcnt >= twi_maxloops) {twi_stop(); twi_init(); twi_lockup_recovery_count++; \
+		return TO_RET;} \
   } while(0)
 
 
@@ -103,7 +110,10 @@ static volatile uint16_t twi_loopcnt;
  */
 void twi_init(void)
 {
-  // initialize state
+ // disable twi module (to allow for reinitialize)
+ TWCR = 0; //08/22/18 - required to get TWI to re-init
+
+ // initialize state
   twi_state = TWI_READY;
   twi_sendStop = true;    // default value
   twi_inRepStart = false;
@@ -594,4 +604,16 @@ ISR(TWI_vect)
 
 void twi_setMaxLoops(uint16_t maxloops) {
   twi_maxloops = maxloops;
+}
+
+uint16_t twi_getMaxLoops() {
+  return twi_maxloops;
+}
+
+void twi_clearRecoveryCount() {
+	twi_lockup_recovery_count = 0;
+}
+
+uint16_t twi_getRecoveryCount() {
+	return twi_lockup_recovery_count;
 }

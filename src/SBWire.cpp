@@ -17,6 +17,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  
   Modified 2012 by Todd Krein (todd@krein.org) to implement repeated starts
+  Modified 2017 by Chuck Todd (ctodd@cableone.net) to correct Unconfigured Slave Mode reboot
+  Modified 2017 by Shuning Bian (freespace@gmail.com ) to prevent while() loop deadlocks
+  Modified 2018 by Frank Paynter (paynterf@gmail.com) to add user access to twi_maxloops parameter
+
 */
 
 extern "C" {
@@ -50,6 +54,28 @@ TwoWire::TwoWire()
 }
 
 // Public Methods //////////////////////////////////////////////////////////////
+
+//08/22/18 gfp: added for lockup prevention parameter access
+void TwoWire::clearRecoveryCount()
+{
+	twi_clearRecoveryCount();
+}
+
+uint16_t TwoWire::getRecoveryCount()
+{
+	return twi_getRecoveryCount();
+}
+
+void TwoWire::setTwiMaxLoops(uint16_t maxloops)
+{
+	twi_setMaxLoops(maxloops);
+}
+
+uint16_t TwoWire::getTwiMaxLoops()
+{
+	return twi_getMaxLoops();
+}
+
 
 void TwoWire::begin(void)
 {

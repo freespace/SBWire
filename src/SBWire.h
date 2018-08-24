@@ -17,6 +17,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
   Modified 2012 by Todd Krein (todd@krein.org) to implement repeated starts
+  Modified 2017 by Shuning Bian (freespace@gmail.com ) to prevent while() loop deadlocks
+  Modified 2018 by Frank Paynter (paynterf@gmail.com) to add user access to twi_maxloops parameter
 */
 
 #ifndef TwoWire_h
@@ -71,6 +73,12 @@ class TwoWire : public Stream
     virtual void flush(void);
     void onReceive( void (*)(int) );
     void onRequest( void (*)(void) );
+
+	//08/22/18 gfp: added for lockup parameter access
+	void clearRecoveryCount();
+	uint16_t getRecoveryCount();
+	void setTwiMaxLoops(uint16_t maxloops);
+	uint16_t getTwiMaxLoops();
 
     inline size_t write(unsigned long n) { return write((uint8_t)n); }
     inline size_t write(long n) { return write((uint8_t)n); }
