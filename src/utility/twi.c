@@ -64,6 +64,8 @@ static volatile uint8_t twi_error;
 //08/22/18 gfp - added to monitor lockup recoveries
 static uint16_t twi_lockup_recovery_count = 0;
 
+static uint32_t twi_frequency = TWI_FREQ;
+
 /**
  * This defines the maximum number of loops various while (...) continue;
  *
@@ -125,7 +127,7 @@ void twi_init(void)
   // initialize twi prescaler and bit rate
   cbi(TWSR, TWPS0);
   cbi(TWSR, TWPS1);
-  TWBR = ((F_CPU / TWI_FREQ) - 16) / 2;
+  TWBR = ((F_CPU / twi_frequency) - 16) / 2;
 
   /* twi bit rate formula from atmega128 manual pg 204
   SCL Frequency = CPU Clock Frequency / (16 + (2 * TWBR))
@@ -173,7 +175,8 @@ void twi_setAddress(uint8_t address)
  */
 void twi_setFrequency(uint32_t frequency)
 {
-  TWBR = ((F_CPU / frequency) - 16) / 2;
+  twi_frequency = frequency;
+  TWBR = ((F_CPU / twi_frequency) - 16) / 2;
 
   /* twi bit rate formula from atmega128 manual pg 204
   SCL Frequency = CPU Clock Frequency / (16 + (2 * TWBR))
